@@ -1,0 +1,19 @@
+# Entornos virtuales
+.venv/
+venv/
+env/
+
+# Cachés y archivos compilados de Python
+__pycache__/
+*.py[cod]
+
+# Archivos temporales
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Configuración local del editor
+.vscode/
+.idea/
