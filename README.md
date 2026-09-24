@@ -79,6 +79,46 @@ El procesamiento no escribe archivos, no usa servicios externos ni registra
 entradas. La contraseña existe en memoria durante la llamada; Python no
 garantiza el borrado inmediato o seguro de las cadenas de memoria.
 
+## Recomendaciones y uso desde Python
+
+`generate_recommendations(result)` recibe solo el resultado del analizador
+y devuelve una tupla de consejos: longitud, patrones detectados y prácticas
+generales. Los mensajes no incluyen la contraseña, no exigen combinar tipos
+de caracteres ni anuncian que una entrada sea segura. Si el mínimo ya se
+cumple pero la longitud es menor que 16, se sugiere ampliarla; es otra
+decisión educativa explícita.
+
+Ejemplo con una entrada ficticia, una vez configurado `PYTHONPATH=src`:
+
+```python
+from password_security_checker.analyzer import analyze_password
+from password_security_checker.recommendations import generate_recommendations
+
+result = analyze_password("aaa123xQ7!", minimum_length=12)
+recommendations = generate_recommendations(result)
+
+assert result.length == 10
+assert result.score == 0
+assert result.level.value == "baja"
+assert result.has_repetition and result.has_sequence
+```
+
+Este ejemplo muestra la API de Python, no una interfaz interactiva.
+No introduzcas contraseñas reales en archivos de código o comandos que
+puedan quedar en el historial. El proyecto no incluye todavía CLI ni GUI;
+la elección de interfaz se decidirá posteriormente.
+
+## Estructura actual
+
+- `rules.py`: comprobaciones individuales de longitud, diversidad y patrones.
+- `models.py`: estructuras inmutables de resultados y niveles.
+- `analyzer.py`: coordinación de reglas y cálculo de puntuación.
+- `recommendations.py`: consejos a partir del resultado, sin la contraseña.
+- `tests/`: pruebas de reglas, analizador y recomendaciones con `unittest`.
+
+Los módulos de aplicación están dentro de `src/password_security_checker/`.
+Todo usa la biblioteca estándar de Python; no hay dependencias externas.
+
 ## Pruebas
 
 Las pruebas usan `unittest`, incluido en Python, y solo entradas ficticias.
