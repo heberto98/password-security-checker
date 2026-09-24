@@ -17,3 +17,8 @@ __pycache__/
 # Configuración local del editor
 .vscode/
 .idea/
+
+# Archivos generados al instalar o construir el paquete
+*.egg-info/
+build/
+dist/
