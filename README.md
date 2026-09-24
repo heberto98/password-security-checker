@@ -17,3 +17,16 @@ espacios, sin modificar la entrada. Todavía no hay interfaz de usuario ni
 evaluación general de fortaleza.
 
 Requiere Python 3.12 o superior. Licencia MIT; consulta el archivo [LICENSE](LICENSE).
+
+## Pruebas
+
+Las pruebas usan `unittest`, incluido en Python, y solo entradas ficticias.
+Desde la raíz del proyecto, en PowerShell:
+
+```powershell
+$env:PYTHONPATH = "src"
+py -3.12 -B -m unittest discover -s tests -v
+```
+
+`PYTHONPATH` permite encontrar el paquete dentro de `src` sin instalarlo.
+La opción `-B` evita generar archivos de caché al ejecutar las pruebas.
