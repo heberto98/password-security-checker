@@ -1,133 +1,253 @@
 # Password Security Checker
 
-Proyecto educativo en Python para desarrollar una herramienta defensiva de análisis de fortaleza de contraseñas.
+Aplicación web educativa en Python para explorar la fortaleza de una contraseña.
+Presenta una puntuación de 0 a 100, su nivel orientativo, composición, patrones
+detectados y recomendaciones, reutilizando un núcleo de análisis independiente.
 
-Su objetivo es aprender a diseñar una aplicación sencilla y modular, incorporando las funciones de análisis de forma incremental.
+**Es una heurística educativa, no una medición absoluta de resistencia a ataques.**
+Una puntuación alta no garantiza seguridad ni indica ausencia de filtraciones.
 
-Las contraseñas se analizarán exclusivamente de forma local. No se almacenarán ni se enviarán a servicios externos.
+## Características
 
-El núcleo puede utilizarse desde Python e incluye reglas locales en
-`src/password_security_checker/rules.py`. La función `check_length` recibe
-una contraseña y un mínimo entero positivo explícito, y devuelve una tupla
-`(longitud, cumple_mínimo)`. Cumplir ese mínimo no garantiza la fortaleza de
-la contraseña.
+- Interfaz en español, adaptable a escritorio y móvil, con HTML, CSS y JavaScript vanilla.
+- Campo oculto con opción mostrar/ocultar, análisis sin recarga y botón para limpiar.
+- Estados de entrada vacía, carga, éxito, error del servidor y error de conexión.
+- Puntuación visual con descripción textual, longitud, diversidad y observaciones.
+- Navegación por teclado, etiquetas, avisos accesibles y respeto a movimiento reducido.
+- Procesamiento local al ejecutar el servidor en tu equipo; sin cuentas ni historial.
+- Sin bases de datos, analíticas, fuentes remotas, trackers ni servicios de terceros.
 
-La regla cuenta puntos de código Unicode mediante `len()`, incluidos los
-espacios, sin modificar la entrada. El analizador reúne las reglas en una
-evaluación educativa. Las interfaces de terminal y gráfica quedan pendientes.
+## Requisitos e instalación
 
-La función `check_character_diversity` devuelve un diccionario con cuatro
-indicadores: `has_lowercase`, `has_uppercase`, `has_digit` y `has_symbol`.
-Reconoce letras y dígitos decimales Unicode; los símbolos incluyen
-puntuación y emojis. Los espacios, controles y marcas combinantes no
-cuentan como símbolos. Los números no decimales, como `²` o `½`, no cuentan
-como dígitos. Estos indicadores describen la composición; no asignan una
-puntuación ni exigen que estén presentes todos los tipos de caracteres.
+Necesitas **Python 3.12 o superior** y Git para clonar el repositorio. No necesitas
+Node, npm ni herramientas de compilación frontend. La instalación inicial descarga
+las dependencias; después, la aplicación no necesita acceso a Internet.
 
-Requiere Python 3.12 o superior. Licencia MIT; consulta el archivo [LICENSE](LICENSE).
+Desde PowerShell en Windows:
 
-## Repeticiones consecutivas
-
-`has_repeated_characters` devuelve `True` si encuentra tres o más puntos
-de código idénticos consecutivos, por ejemplo `aaa`, `!!!` o `ñññ`.
-El umbral de tres es una heurística educativa, no una garantía de seguridad.
-Distingue mayúsculas de minúsculas: `aAa` devuelve `False`. Cuenta espacios
-y no normaliza Unicode ni detecta bloques repetidos como `ababab`.
-Solo devuelve un booleano, sin guardar ni devolver la contraseña.
-
-## Secuencias sencillas
-
-`has_simple_sequence` devuelve `True` si encuentra una secuencia contigua
-de al menos tres letras ASCII (`a-z`) o dígitos (`0-9`), en orden ascendente
-o descendente. Por ejemplo, detecta `abc`, `CbA`, `123` y `321`, incluso
-dentro de una entrada más larga. No distingue mayúsculas de minúsculas.
-
-No une los extremos (`890`, `zab`), no combina letras con números y no
-detecta patrones de teclado (`qwerty`) ni secuencias de otros alfabetos.
-El umbral de tres es educativo. Un resultado `False` en estas reglas solo
-indica ausencia del patrón definido; no garantiza una contraseña segura.
-
-## Analizador y puntuación educativa
-
-`analyze_password(password, minimum_length=12)` devuelve un `AnalysisResult`
-inmutable con longitud, mínimo elegido, cumplimiento de ese mínimo,
-diversidad, indicadores de repetición y secuencia, puntuación y nivel.
-`CharacterDiversity` agrupa los cuatro indicadores de composición y
-`StrengthLevel` define los niveles `baja`, `media` y `alta`.
-Estos objetos no incluyen la contraseña ni fragmentos de ella.
-
-La puntuación es una heurística propia, no un estándar ni una estimación
-de entropía o de tiempo de descifrado:
-
-1. Se otorgan cinco puntos por punto de código, con un máximo inicial de 100.
-2. Se restan 25 puntos por repetición y 25 por secuencia, una vez por tipo.
-3. Si aparece alguno de esos patrones, la puntuación no puede superar 69.
-4. Si no se cumple el mínimo configurado, no puede superar 39.
-5. El resultado nunca baja de cero. Los niveles son baja (0-39),
-   media (40-69) y alta (70-100).
-
-El mínimo predeterminado de 12 es una decisión educativa configurable.
-La diversidad no suma puntos ni impone mezclar tipos de caracteres.
-Un nivel alto solo refleja estas reglas limitadas: el analizador no conoce
-contraseñas comunes, filtraciones, datos personales, reutilización ni
-bloques repetidos. Por ejemplo, una entrada larga y predecible como
-`xQ7!xQ7!xQ7!xQ7!xQ7!` obtiene 100 porque la detección de bloques repetidos
-todavía no está implementada. No uses el resultado como certificación
-de seguridad ni como criterio único para aceptar contraseñas reales.
-
-El procesamiento no escribe archivos, no usa servicios externos ni registra
-entradas. La contraseña existe en memoria durante la llamada; Python no
-garantiza el borrado inmediato o seguro de las cadenas de memoria.
-
-## Recomendaciones y uso desde Python
-
-`generate_recommendations(result)` recibe solo el resultado del analizador
-y devuelve una tupla de consejos: longitud, patrones detectados y prácticas
-generales. Los mensajes no incluyen la contraseña, no exigen combinar tipos
-de caracteres ni anuncian que una entrada sea segura. Si el mínimo ya se
-cumple pero la longitud es menor que 16, se sugiere ampliarla; es otra
-decisión educativa explícita.
-
-Ejemplo con una entrada ficticia, una vez configurado `PYTHONPATH=src`:
-
-```python
-from password_security_checker.analyzer import analyze_password
-from password_security_checker.recommendations import generate_recommendations
-
-result = analyze_password("aaa123xQ7!", minimum_length=12)
-recommendations = generate_recommendations(result)
-
-assert result.length == 10
-assert result.score == 0
-assert result.level.value == "baja"
-assert result.has_repetition and result.has_sequence
+```powershell
+git clone https://github.com/heberto98/password-security-checker.git
+cd password-security-checker
+py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -e ".[test]"
 ```
 
-Este ejemplo muestra la API de Python, no una interfaz interactiva.
-No introduzcas contraseñas reales en archivos de código o comandos que
-puedan quedar en el historial. El proyecto no incluye todavía CLI ni GUI;
-la elección de interfaz se decidirá posteriormente.
+Si ya tienes el proyecto, comienza dentro de su carpeta y omite los dos primeros
+comandos. Se usa el ejecutable del entorno directamente, sin cambiar la política
+de ejecución de PowerShell ni activar scripts. Para instalar solo la aplicación,
+puedes sustituir `".[test]"` por `.`.
 
-## Estructura actual
+En macOS o Linux, los comandos equivalentes son:
 
-- `rules.py`: comprobaciones individuales de longitud, diversidad y patrones.
-- `models.py`: estructuras inmutables de resultados y niveles.
-- `analyzer.py`: coordinación de reglas y cálculo de puntuación.
-- `recommendations.py`: consejos a partir del resultado, sin la contraseña.
-- `tests/`: pruebas de reglas, analizador y recomendaciones con `unittest`.
+```sh
+python3.12 -m venv .venv
+.venv/bin/python -m pip install -e '.[test]'
+```
 
-Los módulos de aplicación están dentro de `src/password_security_checker/`.
-Todo usa la biblioteca estándar de Python; no hay dependencias externas.
+## Ejecutar la web localmente
+
+Desde la carpeta del proyecto, en PowerShell:
+
+```powershell
+.\.venv\Scripts\python.exe -B -m uvicorn password_security_checker.web.app:app --host 127.0.0.1 --port 8000 --no-access-log --no-proxy-headers --no-server-header
+```
+
+En macOS o Linux:
+
+```sh
+.venv/bin/python -B -m uvicorn password_security_checker.web.app:app --host 127.0.0.1 --port 8000 --no-access-log --no-proxy-headers --no-server-header
+```
+
+Abre **http://127.0.0.1:8000** en el navegador. Detén el servidor con `Ctrl+C`.
+Si el puerto está ocupado, usa `--port 8001` y abre la dirección correspondiente.
+No abras el HTML directamente: necesita el backend Python. JavaScript debe estar
+habilitado; sin él, el formulario permanece desactivado y no envía entradas.
+
+Usa ejemplos ficticios para explorar la herramienta. Al pulsar **Analizar
+contraseña**, el campo se vacía y el resultado aparece en la misma página.
+**Limpiar** borra el resultado y cancela la espera de un análisis en curso.
+Puedes introducir otra entrada para empezar de nuevo.
+
+El servidor escucha únicamente en loopback y acepta los hosts `127.0.0.1` y
+`localhost`. No se ha preparado un despliegue público ni una CLI.
+
+## Arquitectura y tecnologías
+
+```text
+Navegador (HTML / CSS / JavaScript)
+    ↓ POST /api/analyze, en el mismo origen
+FastAPI (validación HTTP, límites y errores genéricos)
+    ↓
+analyze_password() → AnalysisResult → generate_recommendations()
+    ↓
+JSON con resultados y consejos, sin la contraseña
+```
+
+El frontend presenta resultados; no duplica las reglas ni calcula la puntuación.
+El núcleo sigue usando exclusivamente la biblioteca estándar. La web añade:
+
+| Dependencia directa | Uso |
+| --- | --- |
+| FastAPI `>=0.141.1,<0.142` | Rutas HTTP, middleware y servicio de archivos estáticos |
+| Uvicorn `>=0.53,<0.54` | Servidor ASGI local |
+| HTTPX2 `>=2.13.1,<3` (extra `test`) | Cliente utilizado por el TestClient actual de Starlette |
+| setuptools `>=77` (construcción) | Instalación del paquete y empaquetado del frontend |
+
+FastAPI incorpora sus dependencias transitivas, como Starlette y Pydantic.
+No se utilizan plantillas de servidor, frameworks frontend ni CDN.
+
+## API
+
+`POST /api/analyze` acepta `Content-Type: application/json` y un objeto con un
+único campo: `password`, una cadena de entre 1 y 1024 puntos de código Unicode.
+No recorta espacios ni normaliza la entrada. El mínimo educativo es 12 y no se
+configura desde la web. El cuerpo HTTP no puede superar 16 KiB, incluso cuando
+se envía por fragmentos. El límite pertenece a la capa web, no cambia el núcleo.
+
+La respuesta contiene únicamente:
+
+- `analysis`: `length`, `minimum_length`, `meets_minimum`, `diversity`,
+  `has_repetition`, `has_sequence`, `score` y `level`.
+- `recommendations`: lista de mensajes del módulo existente.
+
+Los errores devuelven `{"error": "mensaje genérico"}`: JSON mal formado o
+parámetros en URL (400), origen ajeno (403), solicitud demasiado grande (413),
+contenido no JSON (415), entrada inválida (422) o error interno (500).
+No se incluyen el cuerpo recibido, valores inválidos ni trazas de excepciones.
+No hay endpoint GET de análisis ni documentación interactiva donde introducir
+contraseñas accidentalmente. Las rutas y métodos inexistentes devuelven 404/405.
+
+## Reglas y puntuación
+
+La puntuación conserva la heurística original:
+
+1. Cinco puntos por punto de código, hasta un máximo inicial de 100.
+2. Se restan 25 puntos por repetición y 25 por secuencia, una vez por tipo.
+3. Con alguno de esos patrones, el máximo es 69.
+4. Bajo el mínimo configurado, el máximo es 39.
+5. Nunca baja de cero: **baja 0–39**, **media 40–69**, **alta 70–100**.
+
+La diversidad informa de minúsculas, mayúsculas, dígitos decimales y símbolos
+Unicode; no añade puntos ni obliga a mezclar tipos. Los símbolos incluyen
+puntuación y emojis, pero no espacios, controles ni marcas combinantes. Los
+números no decimales, como `²` y `½`, no cuentan como dígitos.
+
+Las repeticiones son tres o más puntos de código idénticos consecutivos,
+distinguiendo mayúsculas: `aaa` se detecta, `aAa` no. Las secuencias son tres
+o más letras ASCII `a-z` o dígitos `0-9` en ambos sentidos, sin distinguir
+mayúsculas: `abc`, `CbA`, `123`, `321`. No se unen extremos como `890` o `zab`.
+
+La longitud usa `len()`: incluye espacios y cuenta puntos de código, que no
+siempre coinciden con caracteres visuales. Los mínimos y umbrales son decisiones
+educativas, no requisitos de un estándar. Las recomendaciones atienden longitud
+y patrones, sugieren ampliar a 16 cuando corresponde y añaden consejos generales.
+
+## Privacidad y seguridad
+
+- La contraseña **sí se transmite del navegador al backend Python** en el cuerpo
+  de una solicitud POST. Con el comando local indicado, ambos están en tu equipo.
+  No es un análisis ejecutado íntegramente en JavaScript.
+- La aplicación no escribe contraseñas en archivos, bases de datos ni logs y no
+  las devuelve en resultados, mensajes de error ni recomendaciones.
+- No usa cookies, localStorage, sessionStorage, IndexedDB, service workers ni
+  historial propio. El campo se vacía al enviar, al limpiar y al salir de la página.
+- Solo guarda referencias temporales en memoria para procesar la solicitud.
+  Python, el navegador, extensiones y el sistema operativo pueden mantener copias:
+  **no se garantiza el borrado seguro o inmediato de la memoria**. La aplicación
+  tampoco puede controlar los administradores de contraseñas del navegador.
+- Respuestas y archivos estáticos llevan `Cache-Control: no-store`. La política
+  de contenido restringe scripts, estilos y conexiones al mismo origen y bloquea
+  incrustación en marcos y envío nativo de formularios.
+- Se restringen hosts y orígenes; no se habilita CORS. Las solicitudes ajenas se
+  rechazan. Los límites de entrada acotan el trabajo del analizador.
+- La validación HTTP es explícita para evitar que los errores automáticos de
+  validación reflejen entradas. Los errores internos se convierten en mensajes
+  genéricos sin registrar trazas que puedan contenerlas.
+- El comando documentado desactiva los access logs y las cabeceras de proxy.
+  No actives modo trace, registradores de cuerpos o depuradores con datos reales.
+  No pongas contraseñas reales en URLs, comandos, scripts ni capturas de pantalla.
+
+Si alojas la aplicación en otro equipo, la contraseña viajará a ese servidor.
+La configuración actual está pensada para uso local; publicarla requeriría un
+diseño de despliegue separado, HTTPS y revisión de proxy, límites y registros.
+No basta con cambiar el host a `0.0.0.0`.
+
+## Limitaciones conocidas
+
+No consulta filtraciones, contraseñas comunes, datos personales ni reutilización.
+Tampoco detecta bloques repetidos, frases conocidas o patrones de teclado como
+`qwerty`. Por ejemplo, **`xQ7!xQ7!xQ7!xQ7!xQ7!` obtiene 100** pese a ser un patrón
+predecible, porque la detección de bloques repetidos no está implementada.
+
+Un nivel alto solo refleja estas reglas limitadas. No se estima entropía real,
+probabilidad de adivinación ni tiempo de descifrado. No uses esta puntuación como
+certificación de seguridad o criterio único para aceptar contraseñas reales.
 
 ## Pruebas
 
-Las pruebas usan `unittest`, incluido en Python, y solo entradas ficticias.
-Desde la raíz del proyecto, en PowerShell:
+Con el extra `test` instalado, desde la raíz del proyecto:
 
 ```powershell
-$env:PYTHONPATH = "src"
-py -3.12 -B -m unittest discover -s tests -v
+.\.venv\Scripts\python.exe -B -m unittest discover -s tests -v
+.\.venv\Scripts\python.exe -m pip check
 ```
 
-`PYTHONPATH` permite encontrar el paquete dentro de `src` sin instalarlo.
-La opción `-B` evita generar archivos de caché al ejecutar las pruebas.
+En macOS o Linux sustituye el ejecutable por `.venv/bin/python`. No hace falta
+configurar `PYTHONPATH`: la instalación editable permite importar el paquete.
+
+Las pruebas usan exclusivamente datos ficticios. Cubren las reglas originales,
+el analizador, recomendaciones, carga de la web, contrato HTTP, equivalencia
+con el núcleo, entradas inválidas, errores internos, límites, orígenes, cabeceras
+y ausencia de la entrada en respuestas y registros capturados. Los errores del
+núcleo se simulan para comprobar que sus detalles no se filtran al cliente.
+
+Para una revisión manual del navegador:
+
+1. Envía una entrada vacía y verifica el aviso accesible.
+2. Prueba mostrar/ocultar y analiza `aaa123xQ7!`: puntuación 0, nivel bajo,
+   longitud insuficiente, repetición y secuencia; el campo queda vacío.
+3. Analiza otra entrada y comprueba que se reemplazan los resultados.
+4. Usa Limpiar y prueba a 390 y 320 píxeles de ancho, sin desplazamiento horizontal.
+5. Detén el servidor y envía otra entrada: debe aparecer un error recuperable.
+6. Comprueba teclado, foco, ausencia de errores en consola en el flujo normal,
+   solicitudes solo al servidor local y almacenamiento vacío del navegador.
+
+## Estructura principal
+
+```text
+password-security-checker/
+├── README.md
+├── pyproject.toml
+├── .gitignore
+├── LICENSE
+├── src/password_security_checker/
+│   ├── __init__.py
+│   ├── models.py
+│   ├── rules.py
+│   ├── analyzer.py
+│   ├── recommendations.py
+│   └── web/
+│       ├── __init__.py
+│       ├── app.py
+│       └── static/
+│           ├── index.html
+│           ├── styles.css
+│           ├── app.js
+│           └── favicon.svg
+└── tests/
+    ├── test_rules.py
+    ├── test_analyzer.py
+    ├── test_recommendations.py
+    └── test_web.py
+```
+
+El núcleo permanece separado de HTTP y del DOM. Los recursos estáticos se incluyen
+en el paquete instalable, no dependen del directorio desde el que arranque Uvicorn.
+
+## Referencias técnicas
+
+- [Manejo de errores y cuerpos de validación en FastAPI](https://fastapi.tiangolo.com/tutorial/handling-errors/).
+- [Middleware de Starlette](https://www.starlette.io/middleware/) y [TestClient](https://www.starlette.io/testclient/).
+- [Opciones de Uvicorn](https://www.uvicorn.org/settings/).
+
+Licencia [MIT](LICENSE).
