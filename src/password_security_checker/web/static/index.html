@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Explora la fortaleza de una contraseña con un analizador educativo que se ejecuta en tu equipo.">
+  <title>Password Security Checker · Análisis local</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/styles.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#checker">Saltar al analizador</a>
+  <div class="page-shell">
+    <header class="site-header">
+      <a class="brand" href="/" aria-label="Password Security Checker, inicio">
+        <img src="/static/favicon.svg" width="38" height="38" alt="">
+        <span>Password<span class="brand-secondary">Security Checker</span></span>
+      </a>
+      <nav aria-label="Información del proyecto">
+        <a href="#how-it-works">Cómo funciona</a>
+        <a href="#privacy">Privacidad</a>
+      </nav>
+      <span class="local-badge"><span aria-hidden="true"></span> Ejecución local</span>
+    </header>
+
+    <main>
+      <section class="hero" aria-labelledby="hero-title">
+        <div>
+          <p class="eyebrow">SEGURIDAD QUE PUEDES ENTENDER</p>
+          <h1 id="hero-title">Conoce mejor<br>tu <em>contraseña.</em></h1>
+          <p class="hero-description">Descubre patrones, interpreta su composición y encuentra<br class="desktop-break"> formas de mejorarla. Sin cuentas. Sin historial.</p>
+        </div>
+        <div class="hero-note">
+          <span class="note-index">01 / EXPLORA</span>
+          <p>Una primera mirada.<br>Una decisión más informada.</p>
+          <span class="note-caption">Hecho para aprender sobre seguridad.</span>
+        </div>
+      </section>
+
+      <section class="checker" id="checker" aria-label="Analizador de contraseñas">
+        <div class="input-panel">
+          <div class="section-heading">
+            <span class="step-label">01</span>
+            <h2>Empieza con una contraseña</h2>
+          </div>
+          <p class="muted">Prueba con un ejemplo ficticio para conocer la herramienta.</p>
+          <form id="password-form" autocomplete="off" novalidate>
+            <label for="password">Contraseña a analizar</label>
+            <div class="password-control">
+              <input id="password" type="password" autocomplete="off" autocapitalize="off" spellcheck="false" aria-describedby="input-help form-error" placeholder="Introduce una contraseña" required>
+              <button id="toggle-password" type="button" aria-controls="password" aria-pressed="false" disabled>Mostrar</button>
+            </div>
+            <p id="input-help" class="input-help">Se borra del campo al enviarla. Máximo: 1024 puntos de código.</p>
+            <p id="form-error" class="form-error" role="alert" hidden></p>
+            <div class="form-actions">
+              <button class="primary-button" id="analyze-button" type="submit" disabled>
+                <span id="analyze-label">Analizar contraseña</span>
+                <span aria-hidden="true">↗</span>
+              </button>
+              <button class="text-button" id="clear-button" type="button" disabled>Limpiar</button>
+            </div>
+          </form>
+          <noscript><p class="form-error">Activa JavaScript para analizar una contraseña. El formulario no envía datos sin JavaScript.</p></noscript>
+          <div class="privacy-note">
+            <svg width="18" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6z"/><path d="m8 12 3 3 5-6"/></svg>
+            <p>El navegador envía la entrada al servidor Python de esta aplicación. Al ejecutarla en tu equipo, el análisis queda en él. La aplicación no guarda entradas ni las envía a terceros.</p>
+          </div>
+        </div>
+
+        <div class="score-panel" id="score-panel" data-level="idle">
+          <div class="score-heading">
+            <span class="eyebrow">TU EVALUACIÓN</span>
+            <span id="result-state" class="result-state">Sin analizar</span>
+          </div>
+          <div class="score-meter" id="score-meter" role="meter" aria-label="Puntuación orientativa" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0" aria-valuetext="Sin análisis">
+            <svg viewBox="0 0 180 180" aria-hidden="true"><circle class="ring-track" cx="90" cy="90" r="77"/><circle class="ring-value" id="score-ring" cx="90" cy="90" r="77" pathLength="100" stroke-dasharray="100" stroke-dashoffset="100"/></svg>
+            <div class="score-number"><strong id="score-value">—</strong><span>de 100 puntos</span></div>
+          </div>
+          <h2 id="score-title" tabindex="-1">Tu análisis empieza aquí</h2>
+          <p id="score-description">Introduce una contraseña para ver<br>lo que nuestras reglas detectan.</p>
+          <p class="score-footnote">Una orientación, no una garantía.</p>
+        </div>
+      </section>
+      <p id="status" class="status" role="status" aria-live="polite" aria-atomic="true">Listo para analizar. Los resultados aparecerán en esta página.</p>
+
+      <section id="results" class="results" aria-labelledby="results-title" hidden>
+        <div class="results-heading">
+          <h2 id="results-title">Entiende tu resultado</h2>
+          <span>Detalles del último análisis</span>
+        </div>
+        <dl class="metrics">
+          <div>
+            <dt>Longitud</dt>
+            <dd>
+              <span id="length-value">0</span> <small>puntos de código</small>
+              <p id="length-detail"></p>
+            </dd>
+          </div>
+          <div>
+            <dt>Composición</dt>
+            <dd>
+              <span id="diversity-value">0</span><small> / 4 tipos presentes</small>
+              <p id="diversity-detail"></p>
+            </dd>
+          </div>
+          <div>
+            <dt>Patrones detectados</dt>
+            <dd>
+              <span id="patterns-value">0</span>
+              <p>Repeticiones y secuencias sencillas</p>
+            </dd>
+          </div>
+        </dl>
+        <div class="details-grid">
+          <section class="detail-card" aria-labelledby="findings-title">
+            <p class="eyebrow">OBSERVACIONES</p>
+            <h3 id="findings-title">Lo que encontramos</h3>
+            <ul id="findings" class="findings-list"></ul>
+          </section>
+          <section class="detail-card" aria-labelledby="recommendations-title">
+            <p class="eyebrow">SIGUIENTES PASOS</p>
+            <h3 id="recommendations-title">Cómo puedes mejorar</h3>
+            <ol id="recommendations" class="recommendations-list"></ol>
+          </section>
+        </div>
+      </section>
+
+      <aside class="educational-note">
+        <span class="info-mark" aria-hidden="true">i</span>
+        <p><strong>Aprender, no certificar.</strong> Esta herramienta usa una heurística educativa. La puntuación no mide de forma absoluta la resistencia a ataques ni comprueba si una contraseña se ha filtrado.</p>
+      </aside>
+
+      <section class="explanation-grid">
+        <div id="how-it-works">
+          <p class="eyebrow">BAJO EL CAPÓ</p>
+          <h2>Reglas claras. Sin caja negra.</h2>
+          <p>El núcleo Python evalúa longitud, composición, repeticiones y secuencias. La longitud suma puntos; los patrones detectados los reducen. La diversidad se describe, pero no añade puntos.</p>
+          <details>
+            <summary>Entender la puntuación y sus límites</summary>
+            <p>Cinco puntos por punto de código, hasta 100. Se restan 25 por cada tipo de patrón. Con patrones, el máximo es 69; por debajo de 12 puntos de código, el máximo es 39.</p>
+            <p>Niveles: baja (0–39), media (40–69), alta (70–100). No detecta contraseñas comunes, bloques repetidos, datos personales ni patrones de teclado. Una entrada predecible puede obtener una puntuación alta.</p>
+          </details>
+        </div>
+        <div id="privacy">
+          <p class="eyebrow">TUS DATOS</p>
+          <h2>Sin registro de contraseñas.</h2>
+          <p>No usamos bases de datos, cookies, almacenamiento del navegador, analíticas ni servicios externos. La entrada se procesa en memoria y se elimina del campo al enviarla.</p>
+          <p>El navegador y Python pueden mantener copias temporales en memoria: no se garantiza su borrado seguro. Si alojas la web en otro equipo, la contraseña viajará a ese servidor.</p>
+        </div>
+      </section>
+    </main>
+    <footer><span>Password Security Checker</span><span>Proyecto educativo · Python + FastAPI · MIT</span></footer>
+  </div>
+</body>
+</html>
