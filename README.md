@@ -26,6 +26,15 @@ puntuación ni exigen que estén presentes todos los tipos de caracteres.
 
 Requiere Python 3.12 o superior. Licencia MIT; consulta el archivo [LICENSE](LICENSE).
 
+## Repeticiones consecutivas
+
+`has_repeated_characters` devuelve `True` si encuentra tres o más puntos
+de código idénticos consecutivos, por ejemplo `aaa`, `!!!` o `ñññ`.
+El umbral de tres es una heurística educativa, no una garantía de seguridad.
+Distingue mayúsculas de minúsculas: `aAa` devuelve `False`. Cuenta espacios
+y no normaliza Unicode ni detecta bloques repetidos como `ababab`.
+Solo devuelve un booleano, sin guardar ni devolver la contraseña.
+
 ## Pruebas
 
 Las pruebas usan `unittest`, incluido en Python, y solo entradas ficticias.

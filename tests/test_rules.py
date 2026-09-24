@@ -2,7 +2,11 @@
 
 import unittest
 
-from password_security_checker.rules import check_character_diversity, check_length
+from password_security_checker.rules import (
+    check_character_diversity,
+    check_length,
+    has_repeated_characters,
+)
 
 
 class CheckLengthTests(unittest.TestCase):
@@ -85,3 +89,33 @@ class CheckCharacterDiversityTests(unittest.TestCase):
 
     def test_non_decimal_numbers_are_not_digits(self):
         self.assert_categories("²½")
+
+
+class RepeatedCharactersTests(unittest.TestCase):
+    def test_short_inputs_and_threshold(self):
+        for password, expected in [("", False), ("a", False), ("aa", False),
+                                   ("aaa", True), ("aaaa", True)]:
+            with self.subTest(password=password):
+                self.assertEqual(has_repeated_characters(password), expected)
+
+    def test_repetition_at_any_position(self):
+        for password in ("aaaXY", "XaaaY", "XYaaa"):
+            with self.subTest(password=password):
+                self.assertTrue(has_repeated_characters(password))
+
+    def test_separated_characters_and_repeated_blocks(self):
+        for password in ("aabaa", "ababab", "abcabc"):
+            with self.subTest(password=password):
+                self.assertFalse(has_repeated_characters(password))
+
+    def test_case_is_significant(self):
+        self.assertFalse(has_repeated_characters("aAa"))
+        self.assertTrue(has_repeated_characters("AAA"))
+
+    def test_unicode_spaces_and_symbols(self):
+        for password in ("ñññ", "🔐🔐🔐", "   ", "!!!"):
+            with self.subTest(password=password):
+                self.assertTrue(has_repeated_characters(password))
+
+    def test_combining_sequences_are_not_normalized(self):
+        self.assertFalse(has_repeated_characters("e\u0301e\u0301e\u0301"))

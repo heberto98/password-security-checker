@@ -37,3 +37,16 @@ def check_character_diversity(password: str) -> dict[str, bool]:
             for char in password
         ),
     }
+
+
+def has_repeated_characters(password: str) -> bool:
+    """Detecta tres o más puntos de código idénticos consecutivos.
+
+    Distingue mayúsculas de minúsculas e incluye espacios y Unicode.
+    No detecta bloques repetidos como 'ababab' ni normaliza la entrada.
+    Devuelve solo un indicador, sin incluir caracteres de la contraseña.
+    """
+    for index in range(len(password) - 2):
+        if password[index] == password[index + 1] == password[index + 2]:
+            return True
+    return False
