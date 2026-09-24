@@ -6,6 +6,7 @@ from password_security_checker.rules import (
     check_character_diversity,
     check_length,
     has_repeated_characters,
+    has_simple_sequence,
 )
 
 
@@ -119,3 +120,46 @@ class RepeatedCharactersTests(unittest.TestCase):
 
     def test_combining_sequences_are_not_normalized(self):
         self.assertFalse(has_repeated_characters("e\u0301e\u0301e\u0301"))
+
+
+class SimpleSequenceTests(unittest.TestCase):
+    def test_short_inputs(self):
+        for password in ("", "a", "ab", "12"):
+            with self.subTest(password=password):
+                self.assertFalse(has_simple_sequence(password))
+
+    def test_ascending_and_descending_sequences(self):
+        for password in ("abc", "xyz", "cba", "zyx", "012", "789",
+                         "210", "987", "abcdef", "654321"):
+            with self.subTest(password=password):
+                self.assertTrue(has_simple_sequence(password))
+
+    def test_case_is_ignored(self):
+        for password in ("ABC", "aBc", "CbA"):
+            with self.subTest(password=password):
+                self.assertTrue(has_simple_sequence(password))
+
+    def test_sequence_at_any_position(self):
+        for password in ("abc!X", "!abcX", "!Xabc", "ñ123🔐"):
+            with self.subTest(password=password):
+                self.assertTrue(has_simple_sequence(password))
+
+    def test_gaps_repetitions_and_direction_changes(self):
+        for password in ("a-b-c", "135", "aaa", "aba", "121", "abd"):
+            with self.subTest(password=password):
+                self.assertFalse(has_simple_sequence(password))
+
+    def test_no_wrapping_or_mixed_categories(self):
+        for password in ("890", "901", "109", "zab", "yza", "azy", "89a"):
+            with self.subTest(password=password):
+                self.assertFalse(has_simple_sequence(password))
+
+    def test_keyboard_patterns_are_out_of_scope(self):
+        for password in ("qwerty", "asdf", "!@#"):
+            with self.subTest(password=password):
+                self.assertFalse(has_simple_sequence(password))
+
+    def test_non_ascii_sequences_are_out_of_scope(self):
+        for password in ("αβγ", "١٢٣", "ａｂｃ", "jKl", "ñop"):
+            with self.subTest(password=password):
+                self.assertFalse(has_simple_sequence(password))

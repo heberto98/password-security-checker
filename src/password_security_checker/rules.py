@@ -50,3 +50,26 @@ def has_repeated_characters(password: str) -> bool:
         if password[index] == password[index + 1] == password[index + 2]:
             return True
     return False
+
+
+def has_simple_sequence(password: str) -> bool:
+    """Detecta secuencias ASCII de al menos tres letras o dígitos.
+
+    Reconoce a-z y 0-9 en ambos sentidos, sin distinguir mayúsculas.
+    No une extremos (890, zab), no combina letras con números y no
+    detecta patrones de teclado ni secuencias de otros alfabetos.
+    Devuelve solo un indicador, sin incluir partes de la contraseña.
+    """
+    ordered_characters = (
+        "abcdefghijklmnopqrstuvwxyz",
+        "zyxwvutsrqponmlkjihgfedcba",
+        "0123456789",
+        "9876543210",
+    )
+    for index in range(len(password) - 2):
+        segment = password[index:index + 3]
+        if segment.isascii() and any(
+            segment.lower() in order for order in ordered_characters
+        ):
+            return True
+    return False

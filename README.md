@@ -35,6 +35,18 @@ Distingue mayúsculas de minúsculas: `aAa` devuelve `False`. Cuenta espacios
 y no normaliza Unicode ni detecta bloques repetidos como `ababab`.
 Solo devuelve un booleano, sin guardar ni devolver la contraseña.
 
+## Secuencias sencillas
+
+`has_simple_sequence` devuelve `True` si encuentra una secuencia contigua
+de al menos tres letras ASCII (`a-z`) o dígitos (`0-9`), en orden ascendente
+o descendente. Por ejemplo, detecta `abc`, `CbA`, `123` y `321`, incluso
+dentro de una entrada más larga. No distingue mayúsculas de minúsculas.
+
+No une los extremos (`890`, `zab`), no combina letras con números y no
+detecta patrones de teclado (`qwerty`) ni secuencias de otros alfabetos.
+El umbral de tres es educativo. Un resultado `False` en estas reglas solo
+indica ausencia del patrón definido; no garantiza una contraseña segura.
+
 ## Pruebas
 
 Las pruebas usan `unittest`, incluido en Python, y solo entradas ficticias.
