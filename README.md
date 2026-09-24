@@ -16,6 +16,14 @@ La regla cuenta puntos de código Unicode mediante `len()`, incluidos los
 espacios, sin modificar la entrada. Todavía no hay interfaz de usuario ni
 evaluación general de fortaleza.
 
+La función `check_character_diversity` devuelve un diccionario con cuatro
+indicadores: `has_lowercase`, `has_uppercase`, `has_digit` y `has_symbol`.
+Reconoce letras y dígitos decimales Unicode; los símbolos incluyen
+puntuación y emojis. Los espacios, controles y marcas combinantes no
+cuentan como símbolos. Los números no decimales, como `²` o `½`, no cuentan
+como dígitos. Estos indicadores describen la composición; no asignan una
+puntuación ni exigen que estén presentes todos los tipos de caracteres.
+
 Requiere Python 3.12 o superior. Licencia MIT; consulta el archivo [LICENSE](LICENSE).
 
 ## Pruebas

@@ -1,5 +1,7 @@
 """Comprobaciones individuales para el análisis local de contraseñas."""
 
+import unicodedata
+
 
 def check_length(password: str, minimum_length: int) -> tuple[int, bool]:
     """Devuelve (longitud, cumple_mínimo) sin modificar la contraseña.
@@ -16,3 +18,22 @@ def check_length(password: str, minimum_length: int) -> tuple[int, bool]:
 
     length = len(password)
     return length, length >= minimum_length
+
+
+def check_character_diversity(password: str) -> dict[str, bool]:
+    """Indica qué tipos de caracteres aparecen, sin evaluar fortaleza.
+
+    Reconoce minúsculas, mayúsculas y dígitos decimales Unicode.
+    Los símbolos incluyen puntuación y símbolos Unicode (como emojis).
+    Espacios, controles y marcas combinantes no cuentan como símbolos.
+    El resultado no contiene la contraseña ni sus caracteres.
+    """
+    return {
+        "has_lowercase": any(char.islower() for char in password),
+        "has_uppercase": any(char.isupper() for char in password),
+        "has_digit": any(char.isdecimal() for char in password),
+        "has_symbol": any(
+            unicodedata.category(char).startswith(("P", "S"))
+            for char in password
+        ),
+    }
