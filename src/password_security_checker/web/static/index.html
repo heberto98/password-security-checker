@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="Explora la fortaleza de una contraseña con un analizador educativo que se ejecuta en tu equipo.">
-  <title>Password Security Checker · Análisis local</title>
+  <meta name="description" content="Explora la fortaleza de una contraseña con un analizador educativo y reglas transparentes.">
+  <title>Password Security Checker · Análisis educativo</title>
   <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/static/styles.css">
   <script src="/static/app.js" defer></script>
@@ -21,7 +21,7 @@
         <a href="#how-it-works">Cómo funciona</a>
         <a href="#privacy">Privacidad</a>
       </nav>
-      <span class="local-badge"><span aria-hidden="true"></span> Ejecución local</span>
+      <span class="local-badge"><span aria-hidden="true"></span> Sin historial</span>
     </header>
 
     <main>
@@ -64,7 +64,7 @@
           <noscript><p class="form-error">Activa JavaScript para analizar una contraseña. El formulario no envía datos sin JavaScript.</p></noscript>
           <div class="privacy-note">
             <svg width="18" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M12 3 4 6v6c0 5 8 9 8 9s8-4 8-9V6z"/><path d="m8 12 3 3 5-6"/></svg>
-            <p>El navegador envía la entrada al servidor Python de esta aplicación. Al ejecutarla en tu equipo, el análisis queda en él. La aplicación no guarda entradas ni las envía a terceros.</p>
+            <p>La versión publicada envía tu contraseña al servidor mediante HTTPS para analizarla. La aplicación no está diseñada para almacenarla. El campo se borra al enviarla.</p>
           </div>
         </div>
 
@@ -146,7 +146,7 @@
           <p class="eyebrow">TUS DATOS</p>
           <h2>Sin registro de contraseñas.</h2>
           <p>No usamos bases de datos, cookies, almacenamiento del navegador, analíticas ni servicios externos. La entrada se procesa en memoria y se elimina del campo al enviarla.</p>
-          <p>El navegador y Python pueden mantener copias temporales en memoria: no se garantiza su borrado seguro. Si alojas la web en otro equipo, la contraseña viajará a ese servidor.</p>
+          <p>El navegador y el servidor pueden mantener copias temporales en memoria: no se garantiza su borrado seguro. En desarrollo local se usa HTTP en tu equipo; en Internet la aplicación debe usarse mediante HTTPS.</p>
         </div>
       </section>
     </main>

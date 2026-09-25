@@ -13,6 +13,9 @@ const panel = document.querySelector("#score-panel");
 const meter = document.querySelector("#score-meter");
 let controller = null;
 let requestNumber = 0;
+const transportAllowed = location.protocol === "https:" || (
+  location.protocol === "http:" && ["127.0.0.1", "localhost", "[::1]"].includes(location.hostname)
+);
 
 function conceal() {
   input.type = "password";
@@ -21,9 +24,9 @@ function conceal() {
 }
 
 function setBusy(busy) {
-  input.disabled = busy;
-  submit.disabled = busy;
-  toggle.disabled = busy;
+  input.disabled = busy || !transportAllowed;
+  submit.disabled = busy || !transportAllowed;
+  toggle.disabled = busy || !transportAllowed;
   form.setAttribute("aria-busy", String(busy));
   submitLabel.textContent = busy ? "Analizando…" : "Analizar contraseña";
 }
@@ -62,6 +65,7 @@ function reset() {
   clearError();
   resetResults();
   status.textContent = "Listo para analizar. Los resultados aparecerán en esta página.";
+  if (!transportAllowed) showError("Para usar la aplicación publicada, abre su dirección HTTPS.");
 }
 
 function showError(message, invalid = false) {
@@ -143,7 +147,7 @@ input.addEventListener("input", () => {
 
 form.addEventListener("submit", async event => {
   event.preventDefault();
-  if (controller) return;
+  if (controller || !transportAllowed) return;
   clearError();
   resetResults();
   if (!input.value.length) { showError("Introduce una contraseña para analizarla.", true); return; }
@@ -179,10 +183,12 @@ form.addEventListener("submit", async event => {
     if (!response.ok) {
       const messages = {
         400: "La solicitud no es válida. Vuelve a introducir la contraseña.",
-        403: "Abre la aplicación desde su dirección local e inténtalo de nuevo.",
+        403: "Abre la aplicación desde su dirección oficial e inténtalo de nuevo.",
+        408: "Se agotó el tiempo de envío. Comprueba tu conexión y vuelve a intentarlo.",
         413: "La solicitud es demasiado grande. Prueba con una entrada más corta.",
         415: "No se pudo enviar la solicitud. Recarga la página.",
-        422: "La entrada no es válida. Introduce entre 1 y 1024 puntos de código."
+        422: "La entrada no es válida. Introduce entre 1 y 1024 puntos de código.",
+        503: "El servicio está ocupado. Espera unos segundos y vuelve a intentarlo."
       };
       resetResults();
       setBusy(false);
@@ -196,7 +202,7 @@ form.addEventListener("submit", async event => {
     if (currentRequest !== requestNumber) return;
     resetResults();
     setBusy(false);
-    showError("No se pudo completar el análisis. Comprueba que el servidor local sigue activo e inténtalo de nuevo.");
+    showError("No se pudo completar el análisis. Comprueba tu conexión y la disponibilidad del servicio e inténtalo de nuevo.");
   } finally {
     clearTimeout(timeout);
     if (currentRequest === requestNumber) {

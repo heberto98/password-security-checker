@@ -1,1 +1,1 @@
-"""Interfaz HTTP local, separada del núcleo de análisis."""
+"""Interfaz HTTP, separada del núcleo de análisis."""
