@@ -22,3 +22,14 @@ __pycache__/
 *.egg-info/
 build/
 dist/
+
+# Configuración privada, credenciales y certificados locales
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer

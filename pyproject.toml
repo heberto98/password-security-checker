@@ -1,11 +1,11 @@
 [build-system]
-requires = ["setuptools>=77"]
+requires = ["setuptools==84.0.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "password-security-checker"
 version = "0.2.0"
-description = "Herramienta educativa de análisis local de fortaleza de contraseñas."
+description = "Aplicación web educativa para analizar la fortaleza de contraseñas sin persistencia."
 readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"
