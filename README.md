@@ -251,9 +251,9 @@ en el paquete instalable, no dependen del directorio desde el que arranque Uvico
 
 Licencia [MIT](LICENSE).
 
-## Producción: preparación sin despliegue
+## Producción genérica: preparación sin despliegue
 
-No se ha elegido proveedor ni publicado la aplicación. El modelo previsto es navegador HTTPS → proxy del proveedor → Uvicorn en red privada. Frontend y API deben compartir origen y servirse desde `/`.
+No se ha publicado la aplicación. Para Render Free, seguir la sección **Deploy en Render** al final: usa una frontera de confianza específica. Esta sección describe el modo genérico con proxies explícitos. Frontend y API deben compartir origen y servirse desde `/`.
 
 ### Instalación reproducible
 
@@ -268,11 +268,12 @@ El arranque común es `python -B -m password_security_checker.web.server`, usand
 | Variable | Finalidad y valores | Predeterminado / producción |
 | --- | --- | --- |
 | `APP_ENV` | `development` o `production` | `development`; indicar `production` al publicar |
+| `DEPLOYMENT_TARGET` | `generic` o `render-free` | `generic`; render-free requiere el contrato de ingreso documentado abajo |
 | `BIND_HOST` | IP de escucha | `127.0.0.1` en desarrollo; `0.0.0.0` en producción, solo en red protegida |
 | `PORT` | Puerto entero 1–65535 | `8000`; usar el asignado por el proveedor |
 | `ALLOWED_HOSTS` | DNS o IPv4 separados por comas, sin URLs, puertos ni comodines | `127.0.0.1,localhost` en desarrollo; obligatorio en producción |
 | `PUBLIC_ORIGIN` | Origen HTTPS canónico, host incluido arriba, sin ruta ni credenciales | Vacío en desarrollo; obligatorio en producción |
-| `TRUSTED_PROXY_IPS` | IP/CIDR reales de proxies, separados por comas | Vacío, sin confianza; obligatorio en producción; rechaza `*` y redes `/0` |
+| `TRUSTED_PROXY_IPS` | IP/CIDR reales de proxies, separados por comas | Obligatorio en producción genérica; prohibido no vacío en render-free; rechaza `*` y redes `/0` |
 | `MAX_CONCURRENCY` | Conexiones/tareas simultáneas por proceso, 2–1024 | `64` |
 | `BODY_TIMEOUT_SECONDS` | Plazo de recepción del cuerpo, 0.1–30 segundos | `5` |
 
@@ -287,7 +288,7 @@ Ejemplo conceptual: `ALLOWED_HOSTS=checker.example`, `PUBLIC_ORIGIN=https://chec
 - Límites de frecuencia por IP y globales, tamaño/cabeceras, tiempos de conexión y lectura, y protección DDoS. Medir carga y ajustar concurrencia/instancias: concurrencia no equivale a rate limiting.
 - Usuario sin privilegios, permisos mínimos, actualizaciones controladas y supervisión de salud sin capturar entradas.
 
-Producción rechaza HTTP sin redirigir POST sensibles. Solo `/healthz` permite HTTP para probes internos con Host autorizado. Hosts alternativos deben llevar al origen canónico mediante el proxy. El formulario también se bloquea en HTTP fuera de loopback; esto no sustituye HTTPS ni protege una página HTTP manipulada.
+Producción genérica rechaza HTTP sin redirigir POST sensibles. Solo `/healthz` permite HTTP para probes internos con Host autorizado. En render-free, HTTPS público se exige en el ingreso de Render, como se explica abajo. El formulario también se bloquea en HTTP fuera de loopback; esto no sustituye HTTPS ni protege una página HTTP manipulada.
 
 ### Decisiones adicionales
 
@@ -299,7 +300,7 @@ Producción rechaza HTTP sin redirigir POST sensibles. Solo `/healthz` permite H
 - Cabeceras: CSP del mismo origen sin `unsafe-inline`; bloqueo de framing/objetos, nosniff contra reinterpretación MIME y no-referrer para reducir fugas. Permissions-Policy deshabilita cámara, micrófono y ubicación.
 - CORS/CSRF: CORS cerrado; Origin debe coincidir si existe, y se rechaza Sec-Fetch-Site cross-site. Clientes sin Origin pueden usar la API: no es autenticación ni defensa contra bots. No hay tokens CSRF porque no existen sesiones, cookies autenticadas ni cambios persistentes. Reevaluar si cambia la arquitectura.
 - API mínima: docs, redoc y openapi.json siguen deshabilitados en ambos entornos. El contrato del README y los tests permiten desarrollar sin otro formulario sensible ni recursos remotos.
-- Docker: evaluado, no añadido. El wheel/proceso Python ya es portable, no hay proveedor elegido y el motor Docker local no estaba disponible para verificar un contenedor.
+- Docker: evaluado, no añadido. El wheel/proceso Python ya es portable; Render usa su runtime Python nativo.
 
 ### Reproducibilidad y verificación
 
@@ -314,3 +315,230 @@ Se simula la terminación TLS con un proxy local confiable. **No se ha verificad
 Nuevos archivos: `src/password_security_checker/web/config.py` (configuración), `server.py` en la misma carpeta (arranque), `tests/test_config.py`, `tests/test_production.py`, `tests/test_server.py`, `requirements.lock`, `requirements-test.lock` y `.env.example`. La API y los textos/protección de transporte del frontend se ajustan sin cambiar el núcleo ni CSS. `.gitignore` excluye configuración privada y material TLS.
 
 Referencias: [FastAPI detrás de un proxy](https://fastapi.tiangolo.com/advanced/behind-a-proxy/), [HTTPS y terminación TLS](https://fastapi.tiangolo.com/deployment/https/).
+
+## Deploy en Render
+
+Configuración para **Web Service Free**, conectado mediante Git Provider a
+`heberto98/password-security-checker`, rama `main`. No se ha desplegado desde
+esta tarea ni se requieren credenciales de Render en el repositorio.
+
+### Por qué no necesitamos IP del reverse proxy
+
+Render documenta que el puerto de la aplicación no es accesible directamente
+desde Internet: el balanceador termina TLS y entrega HTTP interno; el HTTP público
+se redirige a HTTPS antes de llegar a la aplicación.
+[Contrato de Web Services](https://render.com/docs/web-services#port-binding).
+Además, los Web Services Free no reciben tráfico de la red privada.
+[Red privada](https://render.com/docs/private-network).
+
+A partir de estas garantías, el modo explícito `DEPLOYMENT_TARGET=render-free`
+trata HTTPS **externo** como propiedad del ingreso de esa plataforma, no como
+una afirmación de `X-Forwarded-Proto`. Uvicorn deja `proxy_headers=False` y
+`forwarded_allow_ips=""`: ignora X-Forwarded-Proto, X-Forwarded-For y
+X-Forwarded-Host; tampoco se interpreta Forwarded. No se cambia la IP del cliente
+ni el esquema HTTP interno del scope ASGI. La aplicación usa el origen HTTPS
+canónico validado para comprobar Origin y emitir HSTS.
+
+No se han inventado rangos de Render ni se acepta `*`. Render proporciona
+`FORWARDED_ALLOW_IPS=*` en Python, pero el arranque del proyecto anula esa
+configuración de manera explícita.
+[Variables automáticas](https://render.com/docs/environment-variables).
+
+Esto cambia **dónde** se exige TLS externo: en Render Free lo garantiza el
+ingreso de Render; no se intenta verificar TLS usando una cabecera no autenticada.
+Una petición HTTP directa al proceso será aceptada bajo este modo, porque se
+presupone que ya pasó por ese ingreso. Por eso **no sirve para un servidor
+expuesto directamente**, un túnel HTTP o cualquier plataforma distinta.
+El modo genérico conserva el rechazo de HTTP y la lista explícita de proxies.
+
+El arranque Render exige APP_ENV=production, RENDER=true, RENDER_SERVICE_TYPE=web,
+hostname onrender.com y URL HTTPS coherentes, PORT válido y escucha 0.0.0.0.
+No basta con una cabecera ni con RENDER=true para activar este modo.
+Estas variables pertenecen al entorno del proceso, pero **no son una
+atestación criptográfica ni prueban el plan Free**. No existe aquí una consulta
+a la cuenta de Render. El operador debe mantener el servicio en Free.
+
+**Antes de cambiar el servicio a un plan de pago**, revisar la frontera de red:
+esos servicios pueden recibir conexiones privadas que no pasaron por TLS.
+No basta con conservar render-free o añadir IP privadas indiscriminadamente.
+Habrá que aislar/autenticar el ingreso o volver a un proxy explícitamente
+verificable. Esta fase no implementa ni autoriza ese cambio.
+
+### Pantalla Configure and deploy your new Web Service
+
+Elige **Git Provider**, conecta GitHub y selecciona el repositorio; no uses
+la opción Public Git Repository si quieres integración directa y auto-deploys.
+
+| Campo | Valor |
+| --- | --- |
+| Name | `password-security-checker` (si no está disponible, un nombre similar) |
+| Project / Environment | Opcional; dejar sin asignar si no tienes uno |
+| Language / Runtime | `Python 3`, no Docker |
+| Branch | `main` |
+| Region | La disponible más cercana a tus usuarios; para México, Oregon (US West) es una opción |
+| Root Directory | Vacío: usar la raíz del repositorio |
+| Instance Type / Compute plan | **Free** |
+| Build Command | `python -m pip install -r requirements.lock && python -m pip install --no-deps . && python -m pip check` |
+| Start Command | `python -B -m password_security_checker.web.server` |
+| Health Check Path | `/healthz` |
+| Auto-Deploy | `On Commit` para desplegar los futuros pushes a main |
+
+Si el selector de región cambia, otra región Free funciona: ninguna decisión
+de seguridad depende de una IP o región hardcodeada. No añadas servicios privados.
+Con On Commit, sube a main solo cambios ya verificados. No elijas After CI Checks
+Pass hasta tener CI configurado: con cero checks no se dispara el auto-deploy.
+[Comportamiento de auto-deploy](https://render.com/docs/deploys#automatic-deploys).
+
+El Build Command instala las versiones bloqueadas y construye/instala el paquete,
+incluidos los archivos web. No instala el extra de pruebas. No requiere npm,
+Gunicorn, Docker, una base de datos ni comandos de migración.
+`.python-version` selecciona la familia 3.12; Render usa su último parche disponible.
+No crees PYTHON_VERSION: sobrescribiría este archivo. No es un pin del parche
+exacto; revisar el Python efectivo en el build y repetir pruebas al actualizarlo.
+[Selección de Python](https://render.com/docs/python-version).
+
+### Environment Variables: crea solamente estas dos
+
+| Key | Value |
+| --- | --- |
+| `APP_ENV` | `production` |
+| `DEPLOYMENT_TARGET` | `render-free` |
+
+No importes `.env.example` completo: contiene valores de desarrollo local.
+No crees `ALLOWED_HOSTS`, `PUBLIC_ORIGIN`, `TRUSTED_PROXY_IPS`, `BIND_HOST`,
+`PORT`, `FORWARDED_ALLOW_IPS` ni `PYTHON_VERSION` para este primer deployment.
+También deja sin definir MAX_CONCURRENCY y BODY_TIMEOUT_SECONDS: se usarán 64 y 5.
+
+Render suministra automáticamente:
+
+| Variable | Uso en este proyecto |
+| --- | --- |
+| `RENDER` | Debe ser `true` |
+| `RENDER_SERVICE_TYPE` | Debe ser `web` |
+| `RENDER_EXTERNAL_HOSTNAME` | Valor predeterminado de ALLOWED_HOSTS, específico de este servicio |
+| `RENDER_EXTERNAL_URL` | Valor predeterminado de PUBLIC_ORIGIN; debe ser HTTPS y coincidir con el hostname |
+| `PORT` | Puerto real de escucha; normalmente 10000, sin fijarlo en código |
+| `FORWARDED_ALLOW_IPS` | El valor automático de Python no se utiliza |
+
+No crees ni sobrescribas las variables RENDER_*. Solo se consumen las
+documentadas; no se usan nombres internos no garantizados.
+
+### Advanced y primer deployment sin URL previa
+
+- Health Check Path: `/healthz`. Si no aparece en el formulario, configurar
+  Settings → Health Checks después de crear el servicio.
+- Pre-Deploy Command: vacío. Secret Files, discos y servicios auxiliares: ninguno.
+- Build Filters: dejarlos vacíos. No habilitar previews ni integrar APM/log drains
+  que capturen solicitudes; no añadir caché delante de la API.
+- No hay certificados o claves que cargar. Mantener el dominio onrender.com
+  habilitado y no añadir dominios personalizados en este primer deployment.
+
+Al pulsar Create/Deploy Web Service, Render asigna el hostname antes de arrancar
+el proceso y lo expone en sus variables. La aplicación deriva host y origen de
+ellas: **no necesitas conocer, adivinar ni escribir la URL previamente**, no hay
+un primer arranque inseguro, y no hace falta un segundo deploy para completar
+ALLOWED_HOSTS/PUBLIC_ORIGIN. Si faltan los metadatos, el arranque falla cerrado:
+no se sustituyen por comodines.
+
+Después de crearlo, la URL asignada solo la necesitas para abrir la web y ejecutar
+las verificaciones siguientes. El nombre del servicio puede producir una URL con
+sufijo: copia siempre la que muestre Render. Si se cambia en el futuro, se
+recalcula al arrancar. Un dominio personalizado exigiría definir explícitamente
+ALLOWED_HOSTS y PUBLIC_ORIGIN, conservando el hostname de Render en los hosts
+permitidos y añadiendo los dominios usados por los probes. No es necesario ahora.
+
+Render envía sus health checks con el Host onrender.com si no hay dominio propio.
+Por eso /healthz funciona sin añadir localhost, comodines ni confiar en headers
+de proxy. Devuelve 200 y status=ok, sin analizar contraseñas.
+[Health checks de Render](https://render.com/docs/health-checks).
+
+### Verificación después del deploy
+
+Esperar a que el estado sea Live. Las comprobaciones locales de esta adaptación
+no prueban el TLS público ni la configuración efectiva de Render.
+
+En PowerShell, sustituir el dominio de ejemplo por el asignado:
+
+```powershell
+$checkerUrl = 'https://TU-SERVICIO.onrender.com'
+curl.exe --max-time 120 -sS -D - "$checkerUrl/healthz"
+curl.exe --max-time 120 -sS -D - -o NUL "$checkerUrl/"
+curl.exe --max-time 120 -sS -D - -o NUL "$checkerUrl/docs"
+# Solo GET sin datos: comprobar que HTTP público redirige a HTTPS.
+curl.exe --max-time 120 -sS -D - -o NUL ($checkerUrl.Replace('https://', 'http://') + '/healthz')
+```
+
+Esperado: health 200 con `{"status":"ok"}`, página 200, docs 404 y
+HTTP público 3xx hacia HTTPS. **No uses -k**: ocultaría problemas de certificados.
+No envíes contraseñas por HTTP para probar la redirección: el primer envío ya
+sería inseguro. El formulario siempre debe abrirse mediante HTTPS.
+
+Comprobar `Cache-Control: no-store`, CSP sin unsafe-inline,
+`X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`,
+`X-Frame-Options: DENY`, Permissions-Policy y HSTS en respuestas de la app.
+No debe haber Access-Control-Allow-Origin abierto ni cookies de la aplicación.
+Las páginas de espera/errores del proveedor pueden tener otras cabeceras;
+no confundirlas con una respuesta de nuestra API.
+
+En el navegador:
+
+1. Abrir HTTPS y confirmar certificado válido y ausencia de contenido mixto.
+2. Analizar solo `aaa123xQ7!`: debe dar 0, nivel bajo y vaciar el campo.
+3. Hacer un segundo análisis con `RenderDemoOnly-7X!` y usar Limpiar.
+4. En Network, comprobar POST /api/analyze al mismo origen, sin contraseña
+   en URL, respuesta o cabeceras; solo en el cuerpo JSON de la solicitud.
+5. Verificar que no hay peticiones a terceros ni almacenamiento del frontend.
+6. Revisar Render → Logs en ese intervalo: no debe aparecer
+   `RenderDemoOnly-7X!`, el cuerpo, access logs de Uvicorn ni trazas con entrada.
+
+Para errores controlados, usando exclusivamente un marcador ficticio:
+
+```powershell
+$payload = '{"password":["RenderDemoOnly-7X!"]}'
+try {
+    Invoke-WebRequest -Uri "$checkerUrl/api/analyze" -Method Post -ContentType 'application/json' -Body $payload -UseBasicParsing
+} catch {
+    $_.Exception.Response.StatusCode
+    $_.ErrorDetails.Message
+}
+```
+
+Debe responder 422 con un mensaje genérico, nunca el marcador. Revisar también
+no-store en Network o en la respuesta HTTP. Si la API falla o el marcador aparece
+en logs, suspender el servicio e investigar; no activar trace/access logs para
+diagnosticar usando contraseñas reales.
+
+### Privacidad, límites y operación de Free
+
+La aplicación conserva límites, ausencia de persistencia, CORS cerrado y errores
+genéricos. No interpreta IP de usuarios a partir de X-Forwarded-For ni añade
+rate limiting por una IP que no puede verificar.
+
+Render ofrece protección DDoS automática, pero eso no constituye una cuota por IP
+para esta API ni garantiza disponibilidad. Los límites locales no reemplazan
+una estrategia contra abuso sostenido.
+[Protección DDoS](https://render.com/docs/ddos-protection).
+
+Los logs visibles de la aplicación no demuestran ausencia de copias internas
+de Render. La plataforma termina TLS y procesa cuerpos; este repositorio no
+controla buffers, retención interna ni todos sus registros. No se afirma
+«Render nunca almacena contraseñas». No habilitar capturas de cuerpos ni usar
+datos reales. Los request logs de plataforma, cuando el plan de workspace los
+ofrece, son independientes de los access logs de Uvicorn.
+[Logs de Render](https://render.com/docs/logging).
+
+Free es adecuado para esta demo educativa, no para prometer un servicio crítico
+de contraseñas. Render lo duerme tras 15 minutos sin tráfico; el siguiente acceso
+puede tardar alrededor de un minuto y hay límites de uso. Esperar a que despierte
+antes de analizar; no añadir pings para mantenerlo despierto. Render desaconseja
+Free para aplicaciones de producción críticas.
+[Limitaciones Free](https://render.com/docs/free).
+
+### Pruebas de esta adaptación
+
+Línea base: 94 pruebas. Resultado: **108 pruebas aprobadas**. Se mantienen todas
+las anteriores y se añaden 14 casos de configuración/HTTP para Render.
+Se comprueba el arranque sin URL manual, metadatos inválidos, opt-in explícito,
+headers falsificados, health, errores y límites; un caso inicia Uvicorn real con
+FORWARDED_ALLOW_IPS=* en el entorno y verifica el comportamiento seguro y los logs.
+No cambian núcleo, puntuación, frontend ni dependencias.
