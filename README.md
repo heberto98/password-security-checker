@@ -1,5 +1,7 @@
 # Password Security Checker
 
+Live Demo: [https://password-security-checker-01d5.onrender.com](https://password-security-checker-01d5.onrender.com)
+
 Aplicación web educativa en Python para explorar la fortaleza de una contraseña.
 Presenta una puntuación de 0 a 100, su nivel orientativo, composición, patrones
 detectados y recomendaciones, reutilizando un núcleo de análisis independiente.
