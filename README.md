@@ -29,19 +29,21 @@ Desde PowerShell en Windows:
 git clone https://github.com/heberto98/password-security-checker.git
 cd password-security-checker
 py -3.12 -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -e ".[test]"
+.\.venv\Scripts\python.exe -m pip install -r requirements-test.lock
+.\.venv\Scripts\python.exe -m pip install --no-deps -e .
 ```
 
 Si ya tienes el proyecto, comienza dentro de su carpeta y omite los dos primeros
 comandos. Se usa el ejecutable del entorno directamente, sin cambiar la política
 de ejecución de PowerShell ni activar scripts. Para instalar solo la aplicación,
-puedes sustituir `".[test]"` por `.`.
+usa `requirements.lock` en lugar de `requirements-test.lock`.
 
 En macOS o Linux, los comandos equivalentes son:
 
 ```sh
 python3.12 -m venv .venv
-.venv/bin/python -m pip install -e '.[test]'
+.venv/bin/python -m pip install -r requirements-test.lock
+.venv/bin/python -m pip install --no-deps -e .
 ```
 
 ## Ejecutar la web localmente
@@ -49,17 +51,17 @@ python3.12 -m venv .venv
 Desde la carpeta del proyecto, en PowerShell:
 
 ```powershell
-.\.venv\Scripts\python.exe -B -m uvicorn password_security_checker.web.app:app --host 127.0.0.1 --port 8000 --no-access-log --no-proxy-headers --no-server-header
+.\.venv\Scripts\python.exe -B -m password_security_checker.web.server
 ```
 
 En macOS o Linux:
 
 ```sh
-.venv/bin/python -B -m uvicorn password_security_checker.web.app:app --host 127.0.0.1 --port 8000 --no-access-log --no-proxy-headers --no-server-header
+.venv/bin/python -B -m password_security_checker.web.server
 ```
 
 Abre **http://127.0.0.1:8000** en el navegador. Detén el servidor con `Ctrl+C`.
-Si el puerto está ocupado, usa `--port 8001` y abre la dirección correspondiente.
+Si el puerto está ocupado, define `$env:PORT="8001"` antes de arrancar y abre la dirección correspondiente.
 No abras el HTML directamente: necesita el backend Python. JavaScript debe estar
 habilitado; sin él, el formulario permanece desactivado y no envía entradas.
 
@@ -69,7 +71,7 @@ contraseña**, el campo se vacía y el resultado aparece en la misma página.
 Puedes introducir otra entrada para empezar de nuevo.
 
 El servidor escucha únicamente en loopback y acepta los hosts `127.0.0.1` y
-`localhost`. No se ha preparado un despliegue público ni una CLI.
+`localhost`. El modo predeterminado es development. Producción se configura más abajo.
 
 ## Arquitectura y tecnologías
 
@@ -89,9 +91,9 @@ El núcleo sigue usando exclusivamente la biblioteca estándar. La web añade:
 | Dependencia directa | Uso |
 | --- | --- |
 | FastAPI `>=0.141.1,<0.142` | Rutas HTTP, middleware y servicio de archivos estáticos |
-| Uvicorn `>=0.53,<0.54` | Servidor ASGI local |
+| Uvicorn `>=0.53,<0.54` | Servidor ASGI |
 | HTTPX2 `>=2.13.1,<3` (extra `test`) | Cliente utilizado por el TestClient actual de Starlette |
-| setuptools `>=77` (construcción) | Instalación del paquete y empaquetado del frontend |
+| setuptools `==84.0.0` (construcción) | Instalación del paquete y empaquetado del frontend |
 
 FastAPI incorpora sus dependencias transitivas, como Starlette y Pydantic.
 No se utilizan plantillas de servidor, frameworks frontend ni CDN.
@@ -163,14 +165,11 @@ y patrones, sugieren ampliar a 16 cuando corresponde y añaden consejos generale
 - La validación HTTP es explícita para evitar que los errores automáticos de
   validación reflejen entradas. Los errores internos se convierten en mensajes
   genéricos sin registrar trazas que puedan contenerlas.
-- El comando documentado desactiva los access logs y las cabeceras de proxy.
+- El arranque desactiva access logs y, en desarrollo, no confía en proxies.
   No actives modo trace, registradores de cuerpos o depuradores con datos reales.
   No pongas contraseñas reales en URLs, comandos, scripts ni capturas de pantalla.
 
-Si alojas la aplicación en otro equipo, la contraseña viajará a ese servidor.
-La configuración actual está pensada para uso local; publicarla requeriría un
-diseño de despliegue separado, HTTPS y revisión de proxy, límites y registros.
-No basta con cambiar el host a `0.0.0.0`.
+Al publicarse, la contraseña viajará al servidor mediante HTTPS y se procesará temporalmente. La aplicación no está diseñada para almacenarla. La infraestructura también requiere configuración de privacidad; no basta con cambiar la dirección de escucha.
 
 ## Limitaciones conocidas
 
@@ -251,3 +250,67 @@ en el paquete instalable, no dependen del directorio desde el que arranque Uvico
 - [Opciones de Uvicorn](https://www.uvicorn.org/settings/).
 
 Licencia [MIT](LICENSE).
+
+## Producción: preparación sin despliegue
+
+No se ha elegido proveedor ni publicado la aplicación. El modelo previsto es navegador HTTPS → proxy del proveedor → Uvicorn en red privada. Frontend y API deben compartir origen y servirse desde `/`.
+
+### Instalación reproducible
+
+En un entorno virtual Python 3.12+, instalar `python -m pip install -r requirements.lock`, construir con `python -m pip wheel --no-deps --wheel-dir dist .` e instalar `python -m pip install --no-deps dist/password_security_checker-0.2.0-py3-none-any.whl`. Para desarrollo usar `requirements-test.lock` e instalación editable `python -m pip install --no-deps -e .`. Ejecutar `python -m pip check`.
+
+El arranque común es `python -B -m password_security_checker.web.server`, usando el ejecutable del entorno virtual. Configura primero las variables de producción. Fija un worker, sin reload, debug, access logs, WebSockets ni cabecera Server; nivel warning, keep-alive de 5 s y cierre de 10 s. Los valores explícitos evitan que variables genéricas de Uvicorn relajen los controles.
+
+### Variables de entorno
+
+`.env.example` es una referencia y **no se carga automáticamente**. Define variables en la terminal o panel del proveedor. No se requieren secretos.
+
+| Variable | Finalidad y valores | Predeterminado / producción |
+| --- | --- | --- |
+| `APP_ENV` | `development` o `production` | `development`; indicar `production` al publicar |
+| `BIND_HOST` | IP de escucha | `127.0.0.1` en desarrollo; `0.0.0.0` en producción, solo en red protegida |
+| `PORT` | Puerto entero 1–65535 | `8000`; usar el asignado por el proveedor |
+| `ALLOWED_HOSTS` | DNS o IPv4 separados por comas, sin URLs, puertos ni comodines | `127.0.0.1,localhost` en desarrollo; obligatorio en producción |
+| `PUBLIC_ORIGIN` | Origen HTTPS canónico, host incluido arriba, sin ruta ni credenciales | Vacío en desarrollo; obligatorio en producción |
+| `TRUSTED_PROXY_IPS` | IP/CIDR reales de proxies, separados por comas | Vacío, sin confianza; obligatorio en producción; rechaza `*` y redes `/0` |
+| `MAX_CONCURRENCY` | Conexiones/tareas simultáneas por proceso, 2–1024 | `64` |
+| `BODY_TIMEOUT_SECONDS` | Plazo de recepción del cuerpo, 0.1–30 segundos | `5` |
+
+Ejemplo conceptual: `ALLOWED_HOSTS=checker.example`, `PUBLIC_ORIGIN=https://checker.example`. No son valores de un despliegue real. Obtén del proveedor sus IP/CIDR concretos; no copies redes de ejemplo. Escucha y proxies admiten IPv4/IPv6; hosts públicos, DNS/IPv4. Configuración incompleta o inválida impide arrancar sin volcar sus valores. Development solo permite loopback.
+
+### Controles a cargo del proveedor
+
+- HTTPS con certificado válido y renovación automática. No guardar claves en Git. Proteger el salto proxy-backend con red privada o transporte seguro apropiado; nunca transmitir contraseñas por una red intermedia no confiable.
+- Conservar `Host` y sobrescribir `X-Forwarded-Proto` con el esquema real. Solo se interpretan forwarded headers de peers confiables. `X-Forwarded-Host` no reemplaza el Host. Restringir acceso al backend al proxy y probes autorizados.
+- Deshabilitar registro de cuerpos, query strings y datos sensibles en proxy, CDN, WAF, APM, trazas, volcados y reportes. Evitar búferes de cuerpos en disco. La aplicación no controla estas políticas. Una entrada en una URL puede llegar a infraestructura antes de ser rechazada.
+- No cachear `/api/*`, incluidos errores de infraestructura. Uvicorn puede emitir 503 antes del middleware, sin sus cabeceras. No almacenar cuerpos de solicitudes.
+- Límites de frecuencia por IP y globales, tamaño/cabeceras, tiempos de conexión y lectura, y protección DDoS. Medir carga y ajustar concurrencia/instancias: concurrencia no equivale a rate limiting.
+- Usuario sin privilegios, permisos mínimos, actualizaciones controladas y supervisión de salud sin capturar entradas.
+
+Producción rechaza HTTP sin redirigir POST sensibles. Solo `/healthz` permite HTTP para probes internos con Host autorizado. Hosts alternativos deben llevar al origen canónico mediante el proxy. El formulario también se bloquea en HTTP fuera de loopback; esto no sustituye HTTPS ni protege una página HTTP manipulada.
+
+### Decisiones adicionales
+
+- Health: `GET/HEAD /healthz` devuelve `{"status":"ok"}`, sin versiones ni análisis; HEAD sin cuerpo. Comprueba vida, no TLS ni capacidad.
+- Abuso: máximo 16 KiB, 1024 puntos de código, plazo de recepción y concurrencia acotada. Tamaño real comprobado por fragmentos y sin Content-Length; compresión rechazada. Rate limiting queda en el proveedor, sin introducir Redis.
+- Errores: HTTP de producción y query strings se rechazan con 400, recepción lenta con 408 y saturación con 503. No se redirige automáticamente la API con barra final ni se reflejan entradas.
+- Caché: se conserva `no-store` también en estáticos, pequeños y sin nombres versionados. No se introduce CDN.
+- HSTS: un día, solo en producción con HTTPS reconocido. Sin preload ni includeSubDomains para no afectar otros servicios. HTTPS y primera conexión dependen del proveedor.
+- Cabeceras: CSP del mismo origen sin `unsafe-inline`; bloqueo de framing/objetos, nosniff contra reinterpretación MIME y no-referrer para reducir fugas. Permissions-Policy deshabilita cámara, micrófono y ubicación.
+- CORS/CSRF: CORS cerrado; Origin debe coincidir si existe, y se rechaza Sec-Fetch-Site cross-site. Clientes sin Origin pueden usar la API: no es autenticación ni defensa contra bots. No hay tokens CSRF porque no existen sesiones, cookies autenticadas ni cambios persistentes. Reevaluar si cambia la arquitectura.
+- API mínima: docs, redoc y openapi.json siguen deshabilitados en ambos entornos. El contrato del README y los tests permiten desarrollar sin otro formulario sensible ni recursos remotos.
+- Docker: evaluado, no añadido. El wheel/proceso Python ya es portable, no hay proveedor elegido y el motor Docker local no estaba disponible para verificar un contenedor.
+
+### Reproducibilidad y verificación
+
+No se añaden, eliminan ni actualizan dependencias de ejecución. Los locks fijan las versiones directas/transitivas ya usadas y separan testing. Se fija setuptools 84.0.0, constructor verificado. No se fijan hashes: no se prometen builds idénticos entre plataformas. Se comprobó Python 3.12 en Windows; probar otro runtime/SO y revisar avisos de seguridad antes de publicar.
+
+Evaluación inicial: 64 pruebas aprobadas, sin persistencia, pero configuración y mensajes locales, sin plazo de recepción ni configuración de producción. Se conservan las 48 pruebas del núcleo y las 16 web originales intactas. Resultado: **94 pruebas aprobadas**, también con el wheel instalado en un entorno limpio usando los locks; **pip check sin incompatibilidades**.
+
+Cinco pruebas inician Uvicorn real, hacen HTTP por sockets y capturan stdout/stderr para detectar entradas ficticias y trazas. Cubren análisis, errores, confianza del proxy, recepción lenta y saturación. Las demás cubren configuración, cabeceras, caché, health, hosts, orígenes, endpoints y límites. Ejecutar la suite sin variables de producción heredadas: las pruebas específicas configuran su entorno.
+
+Se simula la terminación TLS con un proxy local confiable. **No se ha verificado un certificado, HTTPS externo ni infraestructura desplegada.** Repetir las comprobaciones al elegir proveedor. Esta revisión específica no es una auditoría profesional ni garantiza ausencia de vulnerabilidades.
+
+Nuevos archivos: `src/password_security_checker/web/config.py` (configuración), `server.py` en la misma carpeta (arranque), `tests/test_config.py`, `tests/test_production.py`, `tests/test_server.py`, `requirements.lock`, `requirements-test.lock` y `.env.example`. La API y los textos/protección de transporte del frontend se ajustan sin cambiar el núcleo ni CSS. `.gitignore` excluye configuración privada y material TLS.
+
+Referencias: [FastAPI detrás de un proxy](https://fastapi.tiangolo.com/advanced/behind-a-proxy/), [HTTPS y terminación TLS](https://fastapi.tiangolo.com/deployment/https/).
