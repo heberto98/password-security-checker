@@ -29,6 +29,11 @@ class Settings:
     trusted_proxy_ips: tuple[str, ...]
     max_concurrency: int
     body_timeout_seconds: float
+    deployment_target: str = "generic"
+
+    @property
+    def render_free(self) -> bool:
+        return self.deployment_target == "render-free"
 
     @property
     def production(self) -> bool:
@@ -41,6 +46,26 @@ class Settings:
         if environment not in {"development", "production"}:
             raise ValueError("APP_ENV debe ser development o production.")
         production = environment == "production"
+        target = env.get("DEPLOYMENT_TARGET", "generic")
+        if target not in {"generic", "render-free"}:
+            raise ValueError("DEPLOYMENT_TARGET debe ser generic o render-free.")
+        render_free = target == "render-free"
+        render_host = ""
+        render_origin = ""
+        if render_free:
+            # Opt-in a la frontera de red de Render Free, no a sus headers.
+            # RENDER no es una prueba criptográfica ni indica el plan contratado.
+            if not production or env.get("RENDER") != "true" or env.get("RENDER_SERVICE_TYPE") != "web":
+                raise ValueError("render-free requiere production y un Web Service de Render.")
+            render_host = env.get("RENDER_EXTERNAL_HOSTNAME", "")
+            render_origin = env.get("RENDER_EXTERNAL_URL", "")
+            if (
+                not re.fullmatch(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.onrender\.com", render_host)
+                or render_origin != f"https://{render_host}"
+            ):
+                raise ValueError("Render debe proporcionar hostname y URL HTTPS coherentes.")
+            if "PORT" not in env:
+                raise ValueError("Render debe proporcionar PORT.")
         bind_host = env.get("BIND_HOST", "0.0.0.0" if production else "127.0.0.1")
         try:
             address = ip_address(bind_host)
@@ -48,15 +73,19 @@ class Settings:
             raise ValueError("BIND_HOST debe ser una dirección IP válida.") from None
         if not production and not address.is_loopback:
             raise ValueError("En development, BIND_HOST debe ser loopback.")
+        if render_free and bind_host != "0.0.0.0":
+            raise ValueError("En render-free, BIND_HOST debe ser 0.0.0.0.")
 
-        raw_hosts = env.get("ALLOWED_HOSTS", "" if production else "127.0.0.1,localhost")
+        raw_hosts = env.get("ALLOWED_HOSTS", render_host if render_free else ("" if production else "127.0.0.1,localhost"))
         hosts = tuple(host.strip().lower() for host in raw_hosts.split(","))
         label = re.compile(r"[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?")
         if not all(host and len(host) <= 253 and
                    all(label.fullmatch(part) for part in host.split(".")) for host in hosts):
             raise ValueError("ALLOWED_HOSTS requiere nombres DNS o IPv4 explícitos, sin puertos ni comodines.")
+        if render_free and render_host not in hosts:
+            raise ValueError("ALLOWED_HOSTS debe incluir RENDER_EXTERNAL_HOSTNAME para el health check.")
 
-        origin = env.get("PUBLIC_ORIGIN", "").strip() or None
+        origin = env.get("PUBLIC_ORIGIN", render_origin).strip() or None
         if production and not origin:
             raise ValueError("PUBLIC_ORIGIN es obligatorio en production.")
         if origin:
@@ -76,6 +105,8 @@ class Settings:
             origin = f"https://{parsed.hostname}" + (f":{port}" if port and port != 443 else "")
 
         raw_proxies = env.get("TRUSTED_PROXY_IPS", "").strip()
+        if render_free and raw_proxies:
+            raise ValueError("render-free no usa TRUSTED_PROXY_IPS; elimina esa variable.")
         proxies = []
         if raw_proxies:
             for item in raw_proxies.split(","):
@@ -86,7 +117,7 @@ class Settings:
                 if network.prefixlen == 0:
                     raise ValueError("TRUSTED_PROXY_IPS no permite confiar en toda la red.")
                 proxies.append(str(network))
-        if production and not proxies:
+        if production and not render_free and not proxies:
             raise ValueError("TRUSTED_PROXY_IPS es obligatorio detrás del proxy HTTPS.")
 
         return cls(
@@ -98,4 +129,5 @@ class Settings:
             trusted_proxy_ips=tuple(proxies),
             max_concurrency=_number(env, "MAX_CONCURRENCY", 64, 2, 1024),
             body_timeout_seconds=_number(env, "BODY_TIMEOUT_SECONDS", 5, 0.1, 30, float),
+            deployment_target=target,
         )

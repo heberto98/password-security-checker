@@ -19,7 +19,9 @@ def main() -> None:
         factory=True,
         host=settings.bind_host,
         port=settings.port,
-        proxy_headers=bool(settings.trusted_proxy_ips),
+        # Render Python define FORWARDED_ALLOW_IPS=*: nunca heredarlo.
+        # render-free tiene lista vacía y no interpreta ningún forwarded header.
+        proxy_headers=not settings.render_free and bool(settings.trusted_proxy_ips),
         forwarded_allow_ips=",".join(settings.trusted_proxy_ips),
         access_log=False,
         log_level="warning",

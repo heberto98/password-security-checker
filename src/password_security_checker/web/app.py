@@ -26,10 +26,14 @@ def error_response(status: int, message: str) -> JSONResponse:
 
 async def private_responses(request: Request, call_next):
     settings = request.app.state.settings
+    # Render Free: HTTPS externo es una propiedad del ingreso de la plataforma;
+    # el tramo interno es HTTP. No inferir esquema, host o IP de headers enviados.
+    # Este modo NO es válido donde clientes puedan alcanzar directamente el puerto.
+    external_https = settings.render_free or request.url.scheme == "https"
     try:
         if request.url.query:
             response = error_response(400, "No se admiten parámetros en la URL.")
-        elif settings.production and request.url.scheme != "https" and request.url.path != "/healthz":
+        elif settings.production and not external_https and request.url.path != "/healthz":
             # No se redirige un POST sensible ni se refleja la URL recibida.
             response = error_response(400, "Esta aplicación requiere una conexión HTTPS.")
         else:
@@ -51,7 +55,7 @@ async def private_responses(request: Request, call_next):
             "form-action 'none'"
         ),
     })
-    if settings.production and request.url.scheme == "https":
+    if settings.production and external_https:
         response.headers["Strict-Transport-Security"] = "max-age=86400"
     return response
 

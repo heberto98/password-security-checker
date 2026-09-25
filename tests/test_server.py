@@ -14,7 +14,7 @@ MARKER = "fictional-production-marker-7X!"
 
 
 class ServerTests(unittest.TestCase):
-    def start_server(self, **overrides):
+    def start_server(self, health_host="checker.example", **overrides):
         with socket.socket() as reservation:
             reservation.bind(("127.0.0.1", 0))
             port = reservation.getsockname()[1]
@@ -25,6 +25,7 @@ class ServerTests(unittest.TestCase):
             "TRUSTED_PROXY_IPS": "127.0.0.1", "BODY_TIMEOUT_SECONDS": "0.2",
             "MAX_CONCURRENCY": "64", **overrides,
         }
+        environment = {key: value for key, value in environment.items() if value is not None}
         process = subprocess.Popen(
             [sys.executable, "-B", "-m", "password_security_checker.web.server"],
             env=environment, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
@@ -36,7 +37,7 @@ class ServerTests(unittest.TestCase):
             if process.poll() is not None:
                 self.fail("El servidor terminó antes del health check.")
             try:
-                status, _, _ = self.request(port, "GET", "/healthz")
+                status, _, _ = self.request(port, "GET", "/healthz", Host=health_host)
                 if status == 200:
                     return port
             except OSError:
@@ -140,3 +141,27 @@ class ServerTests(unittest.TestCase):
         status, _, body = self.request(port, "GET", "/healthz")
         self.assertEqual(status, 503)
         self.assertNotIn(MARKER.encode(), body)
+
+    def test_real_render_bootstrap_ignores_wildcard_env_and_forwarding(self):
+        host = "checker-test.onrender.com"
+        port = self.start_server(
+            health_host=host, DEPLOYMENT_TARGET="render-free", RENDER="true",
+            RENDER_SERVICE_TYPE="web", RENDER_EXTERNAL_HOSTNAME=host,
+            RENDER_EXTERNAL_URL=f"https://{host}", BIND_HOST="0.0.0.0",
+            ALLOWED_HOSTS=None, PUBLIC_ORIGIN=None, TRUSTED_PROXY_IPS=None,
+            FORWARDED_ALLOW_IPS="*",
+        )
+        for forwarded in ({}, {"X-Forwarded-Proto": "http", "X-Forwarded-Host": "evil.example",
+                               "X-Forwarded-For": "203.0.113.70"}):
+            status, headers, body = self.request(
+                port, "POST", "/api/analyze", json.dumps({"password": MARKER}),
+                Host=host, Origin=f"https://{host}",
+                **{"Content-Type": "application/json", **forwarded},
+            )
+            self.assertEqual(status, 200)
+            self.assertEqual(headers["cache-control"], "no-store")
+            self.assertEqual(headers["strict-transport-security"], "max-age=86400")
+            self.assertNotIn(MARKER.encode(), body)
+        status, _, _ = self.request(port, "GET", "/", Host="evil.example",
+                                   **{"X-Forwarded-Host": host, "X-Forwarded-Proto": "https"})
+        self.assertEqual(status, 400)
